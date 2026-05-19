@@ -8,17 +8,24 @@ load_dotenv()
 
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
-def extract_promises(markdown_path: str = "program.md", output_path: str = "data/promises.json"):
+def extract_promises(markdown_path: str = "program.md", output_path: str = "data/promises.json", start_chunk: int = 0):
     print("Reading extracted text...")
     with open(markdown_path, "r", encoding="utf-8") as f:
         text = f.read()
 
     chunk_size = 30000
     chunks = [text[i:i+chunk_size] for i in range(0, len(text), chunk_size)]
-    
-    all_promises = []
-    
+
+    if start_chunk > 0 and os.path.exists(output_path):
+        print(f"Resuming from chunk {start_chunk + 1}, loading existing {output_path}...")
+        with open(output_path, "r", encoding="utf-8") as f:
+            all_promises = json.load(f)
+    else:
+        all_promises = []
+
     for i, chunk in enumerate(chunks):
+        if i < start_chunk:
+            continue
         print(f"Processing chunk {i+1}/{len(chunks)}...")
         
         retries = 3
@@ -66,4 +73,4 @@ Document chunk:
     print(f"\nDone! {len(all_promises)} promises saved to {output_path}")
 
 if __name__ == "__main__":
-    extract_promises()
+    extract_promises(start_chunk=14)
