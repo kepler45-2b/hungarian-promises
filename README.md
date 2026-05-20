@@ -34,7 +34,7 @@ Also exposes an MCP server so it can be plugged into any MCP-compatible client (
 
 Clone and install dependencies:
 
-    git clone https://github.com/yourusername/hungarian-promises
+    git clone https://github.com/kepler45-2b/hungarian-promises
     cd hungarian-promises
     pip install -r requirements.txt
 
