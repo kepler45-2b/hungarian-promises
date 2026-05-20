@@ -86,7 +86,24 @@ Only relevant articles get translated to English and embedded, keeping the datab
 
 ## Roadmap
 
-- Promise status tracking (fulfilled / in progress / broken)
-- Daily automated scraping via scheduler
-- Multi-agent orchestrator that monitors uncovered promises
-- Docker deployment
+### Reliability & Observability (next)
+- [ ] Add Langfuse tracing — see every agent run, debug bad answers, track token costs
+- [ ] Build an eval set — ~30 question/answer pairs to regression-test the agent
+- [ ] Validate extracted promises — schema checks, dedup pass, flag low-confidence ones
+- [ ] Replace text JSON parsing with Gemini structured output (response_schema)
+
+### Quality
+- [ ] Chunk the program PDF on section boundaries instead of fixed char counts
+- [ ] Promise status tracking (fulfilled / in progress / broken / unknown)
+- [ ] Confidence scores on news-to-promise matches
+- [ ] Hybrid search (semantic + keyword) for proper-noun queries that embeddings miss
+
+### Performance & cost
+- [ ] True parallel search in LangGraph (current search_both is sequential)
+- [ ] Cache embeddings for repeated queries
+- [ ] Switch router to a cheaper model — it's a 3-way classifier, doesn't need Flash
+
+### Architecture
+- [ ] Multi-agent orchestrator that proactively monitors uncovered promises
+- [ ] Daily automated scraping via cron / GitHub Actions
+- [ ] Docker deployment
