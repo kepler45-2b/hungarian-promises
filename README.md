@@ -5,7 +5,7 @@ A RAG-powered agent that tracks whether the new Hungarian government (elected Ap
 ## What it does
 
 - Extracts and indexes 1151 promises from the government's official program document
-- Scrapes Telex.hu daily for relevant news using an intelligent LangGraph filtering pipeline
+- Scrapes Telex.hu for the latest relevant news using an intelligent LangGraph filtering pipeline — run manually or schedule as a daily cron job
 - Answers natural language questions like "What did they promise about healthcare?" or "Is there any news about the railway promises?"
 - Compares promises to news to track accountability
 
@@ -31,6 +31,7 @@ Also exposes an MCP server so it can be plugged into any MCP-compatible client (
 - Telex.hu — independent Hungarian news source
 
 ## Setup
+## Setup
 
 Clone and install dependencies:
 
@@ -41,6 +42,18 @@ Clone and install dependencies:
 Add your API key:
 
     echo "GEMINI_API_KEY=your_key_here" > .env
+
+Download the government program document from https://mukodoorszagot.hu/#program-pontok
+and place the PDF in the project root.
+
+Build the database (first time only):
+
+    python extract.py        # extract text from PDF
+    python structure.py      # extract promises using Gemini
+    python add_chapters.py   # add chapter categories
+    python fix_categories.py # consolidate AI categories
+    python embed.py          # embed promises into ChromaDB
+    python news_scraper.py   # scrape latest Telex news
 
 Run the app:
 
