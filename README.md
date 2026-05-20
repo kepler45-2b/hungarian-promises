@@ -1,6 +1,6 @@
 # 🇭🇺 Hungarian Government Promise Tracker
 
-A RAG-powered agent that tracks whether the new Hungarian government (elected May 2026) keeps its promises.
+A RAG-powered agent that tracks whether the new Hungarian government (elected April 2026, took power May 2026) keeps its promises.
 
 ## What it does
 

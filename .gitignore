@@ -1,6 +1,10 @@
+data/
+program.md
+*.pdf
 .env
+extract_docling.py
+reset_news.py
+show_news.py
 __pycache__/
 *.pyc
-*.pdf
-program.md
-data/
+*.pyo
