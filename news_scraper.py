@@ -2,6 +2,7 @@ import os
 import json
 import time
 import hashlib
+import urllib.parse
 import feedparser
 import re
 import html
@@ -22,9 +23,10 @@ embeddings = GoogleGenerativeAIEmbeddings(
 )
 
 TELEX_FEED = "https://telex.hu/rss"
+FEED_444 = "https://444.hu/feed"
 
-RELEVANT_TELEX_CATEGORIES = ["Belföld", "Gazdaság", "Vélemény", "English"]
-SKIP_TELEX_CATEGORIES = ["Kultúra", "Könyvespolc", "Karakter", "Sport", "After", "Tech-Tud"]
+SKIP_TELEX_SECTIONS = ["Kultúra", "Könyvespolc", "Karakter", "Sport", "After", "Tech-Tud"]
+KEEP_444_SECTIONS = {"POLITIKA", "GAZDASÁG", "VÉLEMÉNY"}
 
 PROMISE_CATEGORIES = [
     "Healthcare", "Education", "Economy", "Housing", "Transport",
@@ -32,6 +34,12 @@ PROMISE_CATEGORIES = [
     "Public Administration", "Social Policy", "Agriculture",
     "Culture & Sport", "Energy", "Democracy & Anti-Corruption", "Minority Rights"
 ]
+
+def strip_utm(url):
+    parsed = urllib.parse.urlparse(url)
+    params = {k: v for k, v in urllib.parse.parse_qs(parsed.query, keep_blank_values=True).items()
+              if not k.startswith("utm_")}
+    return urllib.parse.urlunparse(parsed._replace(query=urllib.parse.urlencode(params, doseq=True)))
 
 def strip_html(text):
     text = html.unescape(text)
@@ -74,13 +82,12 @@ class ScraperState(TypedDict):
 
 # --- Nodes ---
 def fetch_node(state: ScraperState) -> ScraperState:
-    print("Fetching Telex RSS...")
     collection = get_news_collection()
     existing_ids = set(collection.get()["ids"])
-
     raw = []
-    feed = feedparser.parse(TELEX_FEED)
-    for entry in feed.entries:
+
+    print("Fetching Telex RSS...")
+    for entry in feedparser.parse(TELEX_FEED).entries:
         aid = hashlib.md5(entry.link.encode()).hexdigest()
         if aid in existing_ids:
             continue
@@ -88,13 +95,33 @@ def fetch_node(state: ScraperState) -> ScraperState:
             "id": aid,
             "title": strip_html(entry.get("title", "")),
             "description": strip_html(entry.get("summary", "")),
-            "telex_category": entry.get("tags", [{}])[0].get("term", "") if entry.get("tags") else "",
+            "section": entry.get("tags", [{}])[0].get("term", "") if entry.get("tags") else "",
             "link": entry.get("link", ""),
             "published": entry.get("published", ""),
-            "is_english": "/english/" in entry.get("link", "")
+            "is_english": "/english/" in entry.get("link", ""),
+            "source": "telex.hu",
         })
 
-    print(f"  Fetched {len(raw)} new articles")
+    print("Fetching 444.hu RSS...")
+    for entry in feedparser.parse(FEED_444).entries:
+        canonical = strip_utm(entry.get("link", ""))
+        aid = hashlib.md5(canonical.encode()).hexdigest()
+        if aid in existing_ids:
+            continue
+        tags = [t.get("term", "") for t in entry.get("tags", [])]
+        section = next((t for t in tags if t.isupper() and len(t) > 2), "")
+        raw.append({
+            "id": aid,
+            "title": strip_html(entry.get("title", "")),
+            "description": strip_html(entry.get("summary", "")),
+            "section": section,
+            "link": canonical,
+            "published": entry.get("published", ""),
+            "is_english": False,
+            "source": "444.hu",
+        })
+
+    print(f"  Fetched {len(raw)} new articles total")
     return {**state, "raw_articles": raw}
 
 def prefilter_node(state: ScraperState) -> ScraperState:
@@ -103,12 +130,14 @@ def prefilter_node(state: ScraperState) -> ScraperState:
 
     kept = []
     for a in state["raw_articles"]:
-        cat = a["telex_category"]
-        if any(skip in cat for skip in SKIP_TELEX_CATEGORIES):
+        section = a["section"]
+        if a["source"] == "telex.hu" and any(skip in section for skip in SKIP_TELEX_SECTIONS):
+            continue
+        if a["source"] == "444.hu" and section and section not in KEEP_444_SECTIONS:
             continue
         kept.append(a)
 
-    print(f"  Pre-filter: {len(state['raw_articles'])} → {len(kept)} articles")
+    print(f"  Pre-filter: {len(state['raw_articles'])} -> {len(kept)} articles")
     return {**state, "prefiltered_articles": kept}
 
 def filter_node(state: ScraperState) -> ScraperState:
@@ -144,7 +173,7 @@ NOT relevant:
 - Pure market/business data without government policy angle
 - Entertainment, lifestyle, book reviews
 
-Be strict. When in doubt → not relevant.
+Be strict. When in doubt -> not relevant.
 
 For relevant articles assign one category from:
 {json.dumps(PROMISE_CATEGORIES)}
@@ -166,7 +195,7 @@ Articles:
 
         time.sleep(2)
 
-    print(f"  LLM filter: {len(state['prefiltered_articles'])} → {len(relevant)} articles")
+    print(f"  LLM filter: {len(state['prefiltered_articles'])} -> {len(relevant)} articles")
     return {**state, "relevant_articles": relevant}
 
 def embed_node(state: ScraperState) -> ScraperState:
@@ -222,8 +251,8 @@ def embed_node(state: ScraperState) -> ScraperState:
                 "link": a["link"],
                 "published": a["published"],
                 "category": a["category"],
-                "telex_category": a["telex_category"],
-                "source": "telex.hu",
+                "section": a["section"],
+                "source": a["source"],
                 "is_english": str(a["is_english"])
             } for j, a in enumerate(batch)]
         )
