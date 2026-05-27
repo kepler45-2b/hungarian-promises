@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this project does
 
-RAG-powered tracker for the new Hungarian government (elected April 2026) that indexes 1151 promises from the official program PDF, scrapes Telex.hu news via a LangGraph pipeline, and answers natural language questions about whether promises are being kept.
+RAG-powered tracker for the new Hungarian government (elected April 2026) that indexes 1151 promises from the official program PDF, scrapes Telex.hu and 444.hu news via a LangGraph pipeline, and answers natural language questions about whether promises are being kept.
 
 ## Commands
 
@@ -65,7 +65,7 @@ news_scraper.py — LangGraph ingestion graph
     fetch_node → prefilter_node → filter_node → embed_node
     fetch: RSS from telex.hu and 444.hu; deduplicates by MD5(canonical link) against existing ChromaDB IDs
       — 444.hu links have UTM params stripped before hashing; section extracted from the uppercase tag
-    prefilter: drops irrelevant sections using source-specific skip lists (SKIP_TELEX_SECTIONS / SKIP_444_SECTIONS)
+    prefilter: drops irrelevant sections — Telex uses a blocklist (SKIP_TELEX_SECTIONS); 444.hu uses a whitelist (KEEP_444_SECTIONS: POLITIKA, GAZDASÁG, VÉLEMÉNY); unknown/empty section passes through
     filter: LLM batch-filters in groups of 15, assigns PROMISE_CATEGORIES
     embed: translates Hungarian articles to English via Gemini, then embeds
 ```
